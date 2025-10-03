@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import InvoiceDashboard from "./pages/InvoiceDashboard";
 import NotFound from "./pages/NotFound";
+import { getLoggedUser, getUserDoc, toAbsoluteUrl } from "./api/erpnext";
 
 function Icon({ d, size = 20 }) {
   return (
@@ -9,6 +10,12 @@ function Icon({ d, size = 20 }) {
       <path d={d} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
+}
+
+function initials(name = "") {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "U";
+  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
 }
 
 export default function App() {
@@ -19,15 +26,33 @@ export default function App() {
     localStorage.setItem("ui_theme", theme);
   }, [theme]);
 
-  // Logo from /public (place at public/assets/images/logo.png)
+  // Brand icon from /public
   const logoSrc = process.env.PUBLIC_URL + "/assets/images/logo.png";
+
+  // Real user profile
+  const [profile, setProfile] = useState({ name: "", img: "" });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const userId = await getLoggedUser(); // e.g., "administrator@example.com"
+        if (!userId) return;
+        const doc = await getUserDoc(userId);
+        const full = doc?.full_name || userId;
+        const photo = doc?.user_image ? toAbsoluteUrl(doc.user_image) : "";
+        setProfile({ name: full, img: photo });
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("Could not load user profile:", e?.message);
+      }
+    })();
+  }, []);
 
   return (
     <div className="vuexy-shell">
       {/* Sidebar */}
       <aside className="vuexy-sidebar">
         <div className="brand">
-          {/* Small square icon */}
           <img
             className="brand-icon"
             src={logoSrc}
@@ -41,8 +66,6 @@ export default function App() {
                 );
             }}
           />
-
-          {/* Wordmark */}
           <div className="brand-wordmark" aria-label="Merrix ERP">
             <span className="merrix">Merrix</span>
             <span className="erp">ERP</span>
@@ -84,7 +107,6 @@ export default function App() {
               <Icon d="M3 5h8m-8 6h8M5 21h4M13 21l8-18M15 10h6" />
             </button>
 
-            {/* Dark mode */}
             <button
               className="icon-btn"
               title="Toggle theme"
@@ -98,7 +120,14 @@ export default function App() {
             <button className="icon-btn" title="Notifications" type="button">
               <Icon d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14V11a6 6 0 1 0-12 0v3a2 2 0 0 1-.6 1.4L4 17h5" />
             </button>
-            <div className="avatar sm">A</div>
+
+            {profile.img ? (
+              <img className="avatar sm" src={profile.img} alt={profile.name} />
+            ) : (
+              <div className="avatar sm" aria-label={profile.name || "User"}>
+                {initials(profile.name)}
+              </div>
+            )}
           </div>
         </header>
 

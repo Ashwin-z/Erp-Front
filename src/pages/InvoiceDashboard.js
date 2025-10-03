@@ -2,7 +2,32 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Dropdown from "../components/Dropdown";
 import { listSalesInvoices } from "../api/erpnext";
 
-// Map ERPNext status into our badge classes if needed
+/* Keep 2 sample invoices always (only when no search & All status) */
+const SAMPLE_ROWS = [
+  {
+    id: "#4002",
+    status: "Draft",
+    client: "Hershel Pennetti",
+    company: "Main Company",
+    total: 1294,
+    issued: "Mar 29, 2025",
+    balance: 200,
+    role: "Template Customization",
+    _key: "sample-4002",
+  },
+  {
+    id: "#4003",
+    status: "Paid",
+    client: "Orbadiah Norton",
+    company: "Main Company",
+    total: 1686,
+    issued: "Feb 07, 2025",
+    balance: 0,
+    role: "Template Customization",
+    _key: "sample-4003",
+  },
+];
+
 const STATUS = ["Paid", "Unpaid", "Draft", "Overdue", "Cancelled"];
 
 function fmtMoney(n) {
@@ -42,30 +67,38 @@ export default function InvoiceDashboard() {
     try {
       setErr("");
       setLoading(true);
+
       const data = await listSalesInvoices({
         search: q,
         status: statusFilter,
         page,
         pageSize: perPage,
       });
-      // Map ERPNext fields into our row model
-      const mapped = data.map((d, idx) => ({
-        id: d.name, // e.g., INV-0001
+
+      const mapped = (Array.isArray(data) ? data : []).map((d, i) => ({
+        id: d.name,
         status: d.status,
         client: d.customer,
         company: d.company,
         total: Number(d.grand_total) || 0,
         issued: fmtDate(d.posting_date || d.modified),
         balance: Number(d.outstanding_amount) || 0,
-        // Fake avatar initials
-        avatar: null,
         role: "Template Customization",
-        _key: `${d.name}-${idx}`,
+        _key: `erp-${d.name}-${i}`,
       }));
-      setRows(mapped);
+
+      // Keep sample rows only when not filtering or searching
+      const withSamples =
+        !q && statusFilter === "All"
+          ? [...mapped, ...SAMPLE_ROWS.slice(0, 2)]
+          : mapped;
+
+      setRows(withSamples);
     } catch (e) {
       console.error(e);
       setErr(e.message || "Failed to load invoices");
+      // Show samples at least
+      setRows(SAMPLE_ROWS.slice(0, 2));
     } finally {
       setLoading(false);
     }
@@ -87,7 +120,7 @@ export default function InvoiceDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, statusFilter, page, perPage]);
 
-  // KPIs computed from current page data (or compute server-side if needed)
+  // KPIs computed from current rows (page slice)
   const kpis = useMemo(() => {
     const paidSum = rows
       .filter((r) => r.status === "Paid")
@@ -95,7 +128,6 @@ export default function InvoiceDashboard() {
     const unpaidSum = rows
       .filter((r) => r.status !== "Paid")
       .reduce((a, b) => a + (b.total - b.balance), 0);
-
     return {
       clients: new Set(rows.map((r) => r.client)).size,
       invoices: rows.length,
@@ -116,7 +148,7 @@ export default function InvoiceDashboard() {
 
   return (
     <div className="page">
-      {/* Page brand header (small icon + wordmark) */}
+      {/* Page brand header */}
       <div className="page-brand card">
         <img
           className="brand-icon-lg"
@@ -249,7 +281,9 @@ export default function InvoiceDashboard() {
               <div className="td id"><a href="#!">{r.id}</a></div>
               <div className="td"><span className={`badge ${String(r.status || "").toLowerCase()}`}>{r.status}</span></div>
               <div className="td client">
-                <div className="avatar">{(r.client || "?").split(" ").map((s) => s[0]).join("").slice(0,2)}</div>
+                <div className="avatar">
+                  {(r.client || "?").split(" ").map((s) => s[0]).join("").slice(0,2)}
+                </div>
                 <div className="who">
                   <div className="name">{r.client}</div>
                   <div className="role">{r.role}</div>
@@ -288,7 +322,6 @@ export default function InvoiceDashboard() {
             <button className="page-btn" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="prev page" type="button">‹</button>
             <span className="page-num">{page}</span>
             <button className="page-btn" onClick={() => setPage((p) => p + 1)} aria-label="next page" type="button">›</button>
-            {/* We don't know total pages from the simple endpoint; you can compute from a count API if needed */}
           </div>
         </div>
       </div>
