@@ -1,53 +1,37 @@
-// Minimal ERPNext client (browser).
-// Uses token auth via env vars. Restart the dev server after editing .env.
+import axios from "axios";
 
-const BASE_URL = (process.env.REACT_APP_ERP_BASE_URL || "").replace(/\/$/, "");
-const API_KEY = process.env.REACT_APP_ERP_API_KEY || "";
-const API_SECRET = process.env.REACT_APP_ERP_API_SECRET || "";
+// If REACT_APP_ERP_BASE_URL is empty, we call relative paths like /api/...,
+// which CRA proxies to http://213.199.47.191 (see package.json "proxy").
+const RAW_BASE = (process.env.REACT_APP_ERP_BASE_URL || "").trim();
+export const ERP_BASE_URL = RAW_BASE ? RAW_BASE.replace(/\/$/, "") : "";
 
-if (!BASE_URL) {
-  // eslint-disable-next-line no-console
-  console.warn("REACT_APP_ERP_BASE_URL is not set.");
+// Helper to build URL (relative in dev)
+function buildUrl(path) {
+  // Ensure we always have a leading slash and never double slashes
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${ERP_BASE_URL}${p}`;
 }
 
-export const ERP_BASE_URL = BASE_URL;
+// Axios instance
+const api = axios.create({
+  baseURL: "", // always relative; CRA proxy handles host/port in dev
+  withCredentials: false,
+  validateStatus: (s) => s >= 200 && s < 300 // axios throws on non-2xx
+});
 
-function authHeaders() {
-  if (!API_KEY || !API_SECRET) return {};
-  return { Authorization: `token ${API_KEY}:${API_SECRET}` };
-}
+// Inject auth + accept
+api.interceptors.request.use((config) => {
+  const key = process.env.REACT_APP_ERP_API_KEY || "";
+  const secret = process.env.REACT_APP_ERP_API_SECRET || "";
+  config.headers = { ...(config.headers || {}), Accept: "application/json" };
+  if (key && secret) config.headers.Authorization = `token ${key}:${secret}`;
+  return config;
+});
 
-function toQS(params = {}) {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") qs.append(k, v);
-  });
-  return qs.toString();
-}
-
-async function get(path, params = {}) {
-  const qs = toQS(params);
-  const url = `${BASE_URL}${path}${qs ? `?${qs}` : ""}`;
-
-  const res = await fetch(url, {
-    method: "GET",
-    headers: { ...authHeaders(), Accept: "application/json" },
-    mode: "cors",
-    credentials: "omit",
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`ERPNext GET ${path} failed: ${res.status} ${text}`);
-  }
-  return res.json();
-}
-
-/** Build absolute file URL for /files/... etc. */
 export function toAbsoluteUrl(path) {
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;
-  return `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+  return `${ERP_BASE_URL || ""}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 /** List Sales Invoices with filters/paging/search. */
@@ -62,14 +46,14 @@ export async function listSalesInvoices(options = {}) {
     "grand_total",
     "outstanding_amount",
     "posting_date",
-    "modified",
+    "modified"
   ]);
 
   const params = {
     fields,
     order_by: "modified desc",
     limit_start: String((page - 1) * pageSize),
-    limit_page_length: String(pageSize),
+    limit_page_length: String(pageSize)
   };
 
   const filters = [];
@@ -81,28 +65,24 @@ export async function listSalesInvoices(options = {}) {
   if (search) {
     params.or_filters = JSON.stringify([
       ["Sales Invoice", "name", "like", `%${search}%`],
-      ["Sales Invoice", "customer", "like", `%${search}%`],
+      ["Sales Invoice", "customer", "like", `%${search}%`]
     ]);
   }
 
-  const data = await get("/api/resource/Sales%20Invoice", params);
+  const { data } = await api.get(buildUrl("/api/resource/Sales%20Invoice"), { params });
   return Array.isArray(data?.data) ? data.data : [];
 }
 
-/** Get logged user id (email). Falls back to env user if needed. */
 export async function getLoggedUser() {
-  try {
-    const resp = await get("/api/method/frappe.auth.get_logged_user");
-    return resp?.message || null;
-  } catch {
-    return process.env.REACT_APP_ERP_USER || null;
-  }
+  const { data } = await api.get(buildUrl("/api/method/frappe.auth.get_logged_user"));
+  return data?.message || null;
 }
 
-/** Get a User doc (name, full_name, user_image). */
 export async function getUserDoc(userId) {
   if (!userId) return null;
   const fields = JSON.stringify(["name", "full_name", "user_image"]);
-  const resp = await get(`/api/resource/User/${encodeURIComponent(userId)}`, { fields });
-  return resp?.data || null;
+  const { data } = await api.get(buildUrl(`/api/resource/User/${encodeURIComponent(userId)}`), {
+    params: { fields }
+  });
+  return data?.data || null;
 }

@@ -1,16 +1,15 @@
 /* Vuexy-inspired React invoice page (light & dark with purple accent) */
-/* Font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
-/* ---------- Light theme tokens ---------- */
+/* ---------- Tokens ---------- */
 :root{
-  --bg:#0f1220;           /* set base dark first to reduce flash; overridden by data-theme */
+  --bg:#0f1220;
   --panel:#111827;
   --muted:#9fb3c8;
   --text:#e8eef7;
   --line:rgba(255,255,255,.12);
   --shadow:0 12px 32px rgba(0,0,0,.45);
-  --purple:#8b7dfc;           /* accent */
+  --purple:#8b7dfc;
   --purple-ink:#0b0f1a;
   --green:#22c55e;
   --amber:#fbbf24;
@@ -24,8 +23,6 @@
   --field-hover:#0f1a2a;
   --field-focus-ring: rgba(139,125,252,.35);
 }
-
-/* Light theme override */
 [data-theme="light"]{
   --bg:#f6f7fb;
   --panel:#ffffff;
@@ -52,27 +49,14 @@ body{
 a{color:var(--purple);text-decoration:none}
 .muted{color:var(--muted)}
 
-/* ================= Shell ================= */
+/* ===== Shell ===== */
 .vuexy-shell{display:grid;grid-template-columns:260px 1fr;min-height:100%}
 
-/* =============== Sidebar ================= */
+/* ===== Sidebar ===== */
 .vuexy-sidebar{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column}
-
-/* Brand (sidebar) */
-.brand{
-  display:flex;align-items:center;gap:10px;
-  padding:16px 18px;border-bottom:1px solid var(--line)
-}
-
-/* Small app icon in sidebar */
-.brand-icon{
-  width:28px;height:28px;border-radius:8px;object-fit:contain;
-  background:#f2f3ff;display:block;flex:0 0 auto
-}
-[data-theme="light"] .brand-icon{background:#f2f3ff}
+.brand{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.brand-icon{width:28px;height:28px;border-radius:8px;object-fit:contain;background:#f2f3ff;display:block;flex:0 0 auto}
 [data-theme="dark"] .brand-icon{background:#1b2030}
-
-/* Wordmark: Merrix + ERP pill */
 .brand-wordmark{display:flex;align-items:center;gap:8px;line-height:1}
 .brand-wordmark.tight{gap:8px}
 .brand-wordmark .merrix{
@@ -89,7 +73,6 @@ a{color:var(--purple);text-decoration:none}
 }
 .vuexy-sidebar .brand-wordmark .merrix{ font-size:16px; }
 
-/* Sidebar nav */
 .s-nav{padding:8px}
 .s-section{padding:10px 12px;color:var(--muted);font-size:12px}
 .s-link{
@@ -100,10 +83,8 @@ a{color:var(--purple);text-decoration:none}
 .s-link:hover{background:color-mix(in oklab, var(--purple) 8%, transparent)}
 .s-link.ghost{color:var(--muted)}
 
-/* ================= Main ================== */
+/* ===== Main / Topbar ===== */
 .vuexy-main{min-height:100%;display:flex;flex-direction:column}
-
-/* ================= Topbar ================ */
 .vuexy-topbar{
   position:sticky;top:0;z-index:20;
   display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -128,52 +109,33 @@ a{color:var(--purple);text-decoration:none}
 [data-theme="dark"] .avatar{background:#1b2533;color:#cbd5e1}
 .avatar.sm{width:28px;height:28px}
 
-/* ============== Page Wrap =============== */
+/* ===== Page ===== */
 .page{padding:18px;display:grid;gap:14px}
 
-/* ======= Page brand header (dashboard) ======= */
+/* Page brand header */
 .page-brand{
   display:flex;align-items:center;gap:12px;
   padding:12px 14px;background:var(--panel);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow)
 }
-/* small fixed icon in page header */
-.brand-icon-lg{
-  width:36px;height:36px;border-radius:10px;object-fit:contain;
-  background:#f2f3ff;display:block;flex:0 0 auto
-}
+.brand-icon-lg{width:36px;height:36px;border-radius:10px;object-fit:contain;background:#f2f3ff;display:block;flex:0 0 auto}
 [data-theme="dark"] .brand-icon-lg{background:#1b2030}
 .brand-copy .brand-sub{font-size:12px}
 .page-brand .brand-wordmark .merrix{font-size:18px}
 
-/* ============== KPI Cards =============== */
+/* KPI */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-.kpi{
-  display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px;
-  padding:14px 16px
-}
-.kpi-icon{
-  width:42px;height:42px;border-radius:12px;
-  background:#f4f3ff;color:var(--purple);display:grid;place-items:center
-}
-[data-theme="light"] .kpi-icon{background:#f4f3ff}
+.kpi{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px;padding:14px 16px}
+.kpi-icon{width:42px;height:42px;border-radius:12px;background:#f4f3ff;color:var(--purple);display:grid;place-items:center}
 [data-theme="dark"] .kpi-icon{background:#181f33}
 .kpi-val{font-size:20px;font-weight:800}
 .kpi-label{color:var(--muted);font-size:12px}
 
-/* =============== Toolbar ================= */
+/* Toolbar */
 .toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px}
 .toolbar .left, .toolbar .right{display:flex;align-items:center;gap:10px}
-
-/* Show wrapper */
-.show-select{
-  display:flex;align-items:center;gap:8px;
-  padding:6px 8px;border-radius:10px;background:var(--panel);
-  border:1px solid var(--line)
-}
-
-/* Inputs & buttons */
+.show-select{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;background:var(--panel);border:1px solid var(--line)}
 .input{
   background:var(--field-bg);color:var(--field-text);
   border:1px solid var(--field-line);
@@ -185,49 +147,52 @@ a{color:var(--purple);text-decoration:none}
   border:1px solid var(--line);
   padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer;color:var(--text)
 }
-.btn.primary{
-  background:var(--purple);border-color:var(--purple);color:var(--purple-ink);
-  display:flex;align-items:center;gap:8px
-}
+.btn.primary{background:var(--purple);border-color:var(--purple);color:var(--purple-ink);display:flex;align-items:center;gap:8px}
 
-/* =============== Table =================== */
-.table{
-  overflow: visible; /* header doesn't clip/overlap first row */
-  position: relative;
-}
+/* ===== Table ===== */
+.table{overflow:visible;position:relative}
+
+/* Fixed narrow ID column (160px) */
 .t-head,.t-row{
   display:grid;
-  grid-template-columns:44px 1fr 1.2fr 3fr 1.2fr 1.4fr 1.2fr 1.2fr;
+  grid-template-columns:44px 160px 1.2fr 3fr 1.2fr 1.4fr 1.2fr 1.2fr;
   align-items:center;gap:12px
 }
+
 .t-head{
   position:sticky; top:var(--sticky-offset); z-index:3;
-  padding:12px 14px;
-  background:var(--panel);
-  color:var(--muted);font-size:12px;
-  border-bottom:1px solid var(--line);
+  padding:12px 14px;background:var(--panel);
+  color:var(--muted);font-size:12px;border-bottom:1px solid var(--line);
   box-shadow:0 1px 0 rgba(2,6,23,.04);
 }
-.t-row{
-  padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel)
-}
+.t-row{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
 .t-row:hover{background:color-mix(in oklab, var(--panel) 96%, black)}
 .t-row:first-of-type{scroll-margin-top:calc(var(--sticky-offset) + 8px)}
 
 .th,.td{min-width:0}
 .center{text-align:center}
 .right{text-align:right}
-.id a{color:var(--purple);font-weight:700}
 
-/* client cell */
+/* ID link smaller + truncate */
+.t-row .td.id{max-width:160px;overflow:hidden}
+.t-row .td.id .id-code{
+  display:inline-block;max-width:140px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size:12px;font-weight:800;color:var(--purple);
+}
+
+/* Client cell */
 .client{display:flex;align-items:center;gap:10px}
 .client .avatar{width:36px;height:36px;border:2px solid var(--panel);box-shadow:0 1px 2px rgba(17,24,39,.12)}
 [data-theme="dark"] .client .avatar{box-shadow:none}
 .who .name{font-weight:700}
-.who .role{font-size:12px;color:var(--muted)}
+/* removed .who .role */
+
+/* Actions */
 .actions{display:flex;justify-content:center;gap:6px}
 
-/* ======== Badges ======== */
+/* Badges */
 .badge{
   display:inline-flex;align-items:center;gap:6px;
   border-radius:999px;padding:6px 10px;font-size:12px;
@@ -242,77 +207,44 @@ a{color:var(--purple);text-decoration:none}
 .badge.draft{background:#fefce8;border-color:rgba(234,179,8,.35);color:#713f12}
 .badge.overdue{background:#fef2f2;border-color:rgba(239,68,68,.35);color:#7f1d1d}
 
-/* ============ Table Foot / Pager ============ */
-.t-foot{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:12px 14px;background:var(--panel)
-}
+/* Table Foot / Pager */
+.t-foot{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--panel)}
 .pager{display:flex;align-items:center;gap:8px}
-.page-btn{
-  width:36px;height:36px;border-radius:10px;border:1px solid var(--line);
-  background:var(--panel);cursor:pointer;color:var(--text)
-}
+.page-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;color:var(--text)}
 .page-btn:disabled{opacity:.5;cursor:not-allowed}
-.page-num{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:36px;height:36px;border-radius:10px;background:var(--purple);color:#fff;font-weight:700
-}
+.page-num{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:var(--purple);color:#fff;font-weight:700}
 
-/* ===================== Custom Dropdown ===================== */
+/* Dropdown (unchanged) */
 .dd{position:relative;min-width:200px}
 .dd.w-220{min-width:220px}
 .dd.w-90{min-width:90px}
 .dd.right .dd-menu{left:auto;right:0}
-
-.dd-trigger{
-  width:100%; text-align:left;
-  background:var(--field-bg); color:var(--field-text);
-  border:1px solid var(--field-line);
-  border-radius:10px; padding:10px 36px 10px 12px;
-  display:flex; align-items:center; gap:8px; cursor:pointer;
-  transition:background .15s, border-color .15s, box-shadow .15s;
-}
+.dd-trigger{width:100%;text-align:left;background:var(--field-bg);color:var(--field-text);border:1px solid var(--field-line);border-radius:10px;padding:10px 36px 10px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s}
 .dd-trigger:hover{background:var(--field-hover)}
-.dd-trigger:focus-visible{outline:none; box-shadow:0 0 0 3px var(--field-focus-ring)}
+.dd-trigger:focus-visible{outline:none;box-shadow:0 0 0 3px var(--field-focus-ring)}
 .dd-trigger .value.muted{color:var(--muted)}
-.dd-chevron{position:absolute; right:12px; color:#9aa4b2; pointer-events:none}
+.dd-chevron{position:absolute;right:12px;color:#9aa4b2;pointer-events:none}
 [data-theme="dark"] .dd-chevron{color:#7c8aa3}
-
-.dd-menu{
-  position:absolute; top:calc(100% + 6px); left:0; right:0;
-  background:var(--panel); border:1px solid var(--line); border-radius:12px;
-  box-shadow:var(--shadow); padding:6px; z-index:30;
-  max-height:260px; overflow:auto;
-}
-.dd-option{
-  display:flex; align-items:center; gap:8px;
-  padding:8px 10px; border-radius:8px; cursor:pointer; user-select:none;
-  color:var(--text);
-}
-.dd-option:hover, .dd-option.active{
-  background:color-mix(in oklab, var(--purple) 10%, transparent);
-}
-.dd-option.selected{
-  background:color-mix(in oklab, var(--purple) 16%, transparent);
-}
-.dd-check{width:16px; height:16px; color:var(--purple); visibility:hidden}
+.dd-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:30;max-height:260px;overflow:auto}
+.dd-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;user-select:none;color:var(--text)}
+.dd-option:hover,.dd-option.active{background:color-mix(in oklab, var(--purple) 10%, transparent)}
+.dd-option.selected{background:color-mix(in oklab, var(--purple) 16%, transparent)}
+.dd-check{width:16px;height:16px;color:var(--purple);visibility:hidden}
 .dd-option.selected .dd-check{visibility:visible}
-
-/* compact variant */
-.dd.sm .dd-trigger{padding:8px 30px 8px 10px; font-size:13px}
+.dd.sm .dd-trigger{padding:8px 30px 8px 10px;font-size:13px}
 .dd.sm .dd-menu{min-width:140px}
 
-/* ============== Responsive =============== */
+/* ===== Responsive ===== */
 @media (max-width:1100px){
   .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .t-head,.t-row{
-    grid-template-columns:44px 1fr 1.2fr 2.2fr 1.2fr 1.4fr 1.2fr 1.2fr
+    grid-template-columns:44px 140px 1.2fr 2.2fr 1.2fr 1.4fr 1.2fr 1.2fr;
   }
   .search-wrap{min-width:320px}
 }
 @media (max-width:820px){
   .vuexy-shell{grid-template-columns:70px 1fr}
-  .brand-wordmark .merrix{display:none} /* collapse text on tiny sidebar */
+  .brand-wordmark .merrix{display:none}
   .brand-wordmark .erp{display:none}
   .s-link span{display:none}
   .s-section{display:none}
@@ -320,8 +252,8 @@ a{color:var(--purple);text-decoration:none}
   .kpi-grid{grid-template-columns:1fr}
   .search-wrap{min-width:220px}
 
-  /* hide “Balance” + “Actions” narrow */
-  .t-head,.t-row{grid-template-columns:44px 1fr 1.6fr 2fr 1.2fr 1.4fr}
+  /* hide Balance + Actions; keep fixed ID width */
+  .t-head,.t-row{grid-template-columns:44px 130px 1.6fr 2fr 1.2fr 1.4fr}
   .t-head .th:nth-last-child(-n+2),
   .t-row .td:nth-last-child(-n+2){display:none}
 }

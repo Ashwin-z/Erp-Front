@@ -2,32 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Dropdown from "../components/Dropdown";
 import { listSalesInvoices } from "../api/erpnext";
 
-/* Keep 2 sample invoices always (only when no search & All status) */
-const SAMPLE_ROWS = [
-  {
-    id: "#4002",
-    status: "Draft",
-    client: "Hershel Pennetti",
-    company: "Main Company",
-    total: 1294,
-    issued: "Mar 29, 2025",
-    balance: 200,
-    role: "Template Customization",
-    _key: "sample-4002",
-  },
-  {
-    id: "#4003",
-    status: "Paid",
-    client: "Orbadiah Norton",
-    company: "Main Company",
-    total: 1686,
-    issued: "Feb 07, 2025",
-    balance: 0,
-    role: "Template Customization",
-    _key: "sample-4003",
-  },
-];
-
 const STATUS = ["Paid", "Unpaid", "Draft", "Overdue", "Cancelled"];
 
 function fmtMoney(n) {
@@ -62,7 +36,6 @@ export default function InvoiceDashboard() {
   // Logo (from /public)
   const LOGO_SRC = process.env.PUBLIC_URL + "/assets/images/logo.png";
 
-  // Fetch function
   const fetchInvoices = async () => {
     try {
       setErr("");
@@ -83,28 +56,19 @@ export default function InvoiceDashboard() {
         total: Number(d.grand_total) || 0,
         issued: fmtDate(d.posting_date || d.modified),
         balance: Number(d.outstanding_amount) || 0,
-        role: "Template Customization",
         _key: `erp-${d.name}-${i}`,
       }));
 
-      // Keep sample rows only when not filtering or searching
-      const withSamples =
-        !q && statusFilter === "All"
-          ? [...mapped, ...SAMPLE_ROWS.slice(0, 2)]
-          : mapped;
-
-      setRows(withSamples);
+      setRows(mapped);
     } catch (e) {
       console.error(e);
       setErr(e.message || "Failed to load invoices");
-      // Show samples at least
-      setRows(SAMPLE_ROWS.slice(0, 2));
+      setRows([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Initial + on filter change
   useEffect(() => {
     fetchInvoices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,14 +84,10 @@ export default function InvoiceDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, statusFilter, page, perPage]);
 
-  // KPIs computed from current rows (page slice)
+  // KPIs from current rows
   const kpis = useMemo(() => {
-    const paidSum = rows
-      .filter((r) => r.status === "Paid")
-      .reduce((a, b) => a + b.total, 0);
-    const unpaidSum = rows
-      .filter((r) => r.status !== "Paid")
-      .reduce((a, b) => a + (b.total - b.balance), 0);
+    const paidSum = rows.filter((r) => r.status === "Paid").reduce((a, b) => a + b.total, 0);
+    const unpaidSum = rows.filter((r) => r.status !== "Paid").reduce((a, b) => a + (b.total - b.balance), 0);
     return {
       clients: new Set(rows.map((r) => r.client)).size,
       invoices: rows.length,
@@ -136,11 +96,7 @@ export default function InvoiceDashboard() {
     };
   }, [rows]);
 
-  // Dropdown options
-  const perPageOptions = useMemo(
-    () => [10, 25, 50].map((n) => ({ value: n, label: String(n) })),
-    []
-  );
+  const perPageOptions = useMemo(() => [10, 25, 50].map((n) => ({ value: n, label: String(n) })), []);
   const statusOptions = useMemo(
     () => [{ value: "All", label: "Invoice Status", placeholder: true }, ...STATUS.map((s) => ({ value: s, label: s }))],
     []
@@ -148,7 +104,7 @@ export default function InvoiceDashboard() {
 
   return (
     <div className="page">
-      {/* Page brand header */}
+      {/* Brand header */}
       <div className="page-brand card">
         <img
           className="brand-icon-lg"
@@ -278,15 +234,12 @@ export default function InvoiceDashboard() {
           rows.map((r) => (
             <div className="t-row" key={r._key}>
               <div className="td center"><input type="checkbox" aria-label={`select ${r.id}`} /></div>
-              <div className="td id"><a href="#!">{r.id}</a></div>
+              <div className="td id"><a className="id-code" href="#!">{r.id}</a></div>
               <div className="td"><span className={`badge ${String(r.status || "").toLowerCase()}`}>{r.status}</span></div>
               <div className="td client">
-                <div className="avatar">
-                  {(r.client || "?").split(" ").map((s) => s[0]).join("").slice(0,2)}
-                </div>
+                <div className="avatar">{(r.client || "?").split(" ").map((s) => s[0]).join("").slice(0,2)}</div>
                 <div className="who">
                   <div className="name">{r.client}</div>
-                  <div className="role">{r.role}</div>
                 </div>
               </div>
               <div className="td right">${fmtMoney(r.total)}</div>

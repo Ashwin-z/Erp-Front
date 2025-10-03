@@ -19,30 +19,27 @@ function initials(name = "") {
 }
 
 export default function App() {
-  // Dark theme toggle (persists)
   const [theme, setTheme] = useState(() => localStorage.getItem("ui_theme") || "light");
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("ui_theme", theme);
   }, [theme]);
 
-  // Brand icon from /public
   const logoSrc = process.env.PUBLIC_URL + "/assets/images/logo.png";
 
-  // Real user profile
+  // Real ERPNext user profile
   const [profile, setProfile] = useState({ name: "", img: "" });
 
   useEffect(() => {
     (async () => {
       try {
-        const userId = await getLoggedUser(); // e.g., "administrator@example.com"
+        const userId = await getLoggedUser();
         if (!userId) return;
         const doc = await getUserDoc(userId);
         const full = doc?.full_name || userId;
         const photo = doc?.user_image ? toAbsoluteUrl(doc.user_image) : "";
         setProfile({ name: full, img: photo });
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.warn("Could not load user profile:", e?.message);
       }
     })();
@@ -95,7 +92,6 @@ export default function App() {
 
       {/* Main */}
       <main className="vuexy-main">
-        {/* Topbar */}
         <header className="vuexy-topbar">
           <div className="search-wrap">
             <Icon d="M11 19a8 8 0 1 1 5.293-2.707L22 22" />
