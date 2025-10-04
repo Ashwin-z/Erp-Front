@@ -257,3 +257,82 @@ a{color:var(--purple);text-decoration:none}
   .t-head .th:nth-last-child(-n+2),
   .t-row .td:nth-last-child(-n+2){display:none}
 }
+
+/* --- Create Invoice page helpers (SCOPED) --- */
+.create-invoice { max-width: 1100px; width: 100%; margin: 0 auto; gap: 16px; }
+.create-invoice .card { border-radius: 16px; box-shadow: var(--shadow); }
+.create-invoice .title-bar {
+  padding: 12px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+}
+.create-invoice .title-bar .btn { min-width: 120px; }
+
+.create-invoice .lbl { display:block; margin:0 0 6px; color:var(--muted); font-size:12px; font-weight:600 }
+.create-invoice .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.create-invoice .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.create-invoice .flags{display:flex;gap:16px;flex-wrap:wrap}
+.create-invoice .flag{display:flex;gap:8px;align-items:center;color:var(--text)}
+.create-invoice .section-title{font-weight:800;font-size:15px; letter-spacing:.02em}
+.create-invoice .big{font-weight:800;font-size:18px}
+
+.create-invoice .input{ background:var(--field-bg); color:var(--field-text); border:1px solid var(--field-line); border-radius:12px; padding:10px 12px; }
+.create-invoice .input:focus{ outline:none; box-shadow:0 0 0 3px var(--field-focus-ring) }
+
+/* Combobox / dropdown (scoped) */
+.create-invoice .combo{position:relative}
+.create-invoice .combo-pop{
+  position:absolute;left:0;right:0;top:calc(100% + 6px);
+  background: var(--panel); border:1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+  max-height:280px; overflow:auto; z-index: 50;
+}
+.create-invoice .combo-opt{padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:4px;border-radius:8px}
+.create-invoice .combo-opt:hover{background: color-mix(in oklab, var(--purple) 10%, transparent)}
+.create-invoice .opt-title{font-weight:700}
+.create-invoice .opt-sub{font-size:12px;color:var(--muted)}
+
+/* Create page table (softer, card-like rows) */
+.create-invoice .si-table{width:100%;border-collapse:separate;border-spacing:0 10px}
+.create-invoice .si-table thead th{
+  color:var(--muted);font-size:12px;
+  background:var(--panel); border-bottom:1px solid var(--line); padding:10px 12px;
+}
+.create-invoice .si-table tbody tr{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:12px; overflow:hidden;
+}
+.create-invoice .si-table td{ padding:10px 12px; border-bottom:0; }
+.create-invoice .si-table .col-amt{text-align:right;font-weight:800}
+.create-invoice .si-table .col-act{text-align:right}
+
+/* Buttons (slightly softer for this page) */
+.create-invoice .btn{ border-radius:12px; }
+.create-invoice .btn.primary{
+  background: linear-gradient(180deg, color-mix(in oklab, var(--purple) 20%, transparent) 0%, color-mix(in oklab, var(--purple) 28%, transparent) 100%);
+  border-color: color-mix(in oklab, var(--purple) 56%, transparent);
+  color:#fff;
+}
+
+/* Tiny utils */
+.mt4{margin-top:4px}.mt8{margin-top:8px}
+
+/* keep your earlier generic helpers for non-create pages */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.lbl{display:block;margin:0 0 6px;color:var(--muted);font-size:12px}
+.flags{display:flex;gap:16px;flex-wrap:wrap}
+.flag{display:flex;gap:8px;align-items:center;color:var(--text)}
+.section-title{font-weight:800;font-size:16px}
+.big{font-weight:800;font-size:18px}
+
+.combo{position:relative}
+.combo-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:260px;overflow:auto;z-index:50}
+.combo-opt{padding:8px 10px;cursor:pointer}
+.combo-opt:hover{background:color-mix(in oklab,var(--purple) 12%,transparent)}
+.opt-title{font-weight:700}
+.opt-sub{font-size:12px;color:var(--muted)}
+
+/* simple table for create page (fallback for non-scoped usage) */
+.si-table{width:100%;border-collapse:separate;border-spacing:0 8px}
+.si-table th,.si-table td{padding:8px 10px;border-bottom:1px solid var(--line)}
+.si-table thead th{color:var(--muted);font-size:12px;border-bottom:1px solid var(--line)}
+.si-table tbody tr{background:var(--panel)}
+.si-table .col-amt{text-align:right;font-weight:800}

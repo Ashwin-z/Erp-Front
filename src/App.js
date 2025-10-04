@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import InvoiceDashboard from "./pages/InvoiceDashboard";
+import CreateInvoice from "./pages/CreateInvoice";
 import NotFound from "./pages/NotFound";
 import { getLoggedUser, getUserDoc, toAbsoluteUrl } from "./api/erpnext";
 
@@ -129,6 +130,7 @@ export default function App() {
 
         <Routes>
           <Route path="/" element={<InvoiceDashboard />} />
+          <Route path="/invoices/new" element={<CreateInvoice />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

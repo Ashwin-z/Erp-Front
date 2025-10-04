@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import Dropdown from "../components/Dropdown";
 import { listSalesInvoices } from "../api/erpnext";
 
@@ -21,19 +22,16 @@ function fmtDate(d) {
 }
 
 export default function InvoiceDashboard() {
-  // UI state
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [perPage, setPerPage] = useState(25);
   const [page, setPage] = useState(1);
 
-  // Data state
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const refreshTimer = useRef(null);
 
-  // Logo (from /public)
   const LOGO_SRC = process.env.PUBLIC_URL + "/assets/images/logo.png";
 
   const fetchInvoices = async () => {
@@ -74,25 +72,32 @@ export default function InvoiceDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, statusFilter, page, perPage]);
 
-  // Live refresh every 10s
   useEffect(() => {
     refreshTimer.current && clearInterval(refreshTimer.current);
     refreshTimer.current = setInterval(() => {
       fetchInvoices();
-    }, 100000);
+    }, 10000);
     return () => refreshTimer.current && clearInterval(refreshTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, statusFilter, page, perPage]);
 
-  // KPIs from current rows
+  // KPIs:
+  // - Paid = sum(grand_total) where status === "Paid"
+  // - Unpaid = sum(outstanding_amount) where outstanding > 0 AND status !== "Paid"
   const kpis = useMemo(() => {
-    const paidSum = rows.filter((r) => r.status === "Paid").reduce((a, b) => a + b.total, 0);
-    const unpaidSum = rows.filter((r) => r.status !== "Paid").reduce((a, b) => a + (b.total - b.balance), 0);
+    const paidTotal = rows
+      .filter((r) => r.status === "Paid")
+      .reduce((a, r) => a + r.total, 0);
+
+    const unpaidTotal = rows
+      .filter((r) => r.status !== "Paid" && r.balance > 0)
+      .reduce((a, r) => a + r.balance, 0);
+
     return {
       clients: new Set(rows.map((r) => r.client)).size,
       invoices: rows.length,
-      paid: paidSum,
-      unpaid: unpaidSum,
+      paid: paidTotal,
+      unpaid: unpaidTotal,
     };
   }, [rows]);
 
@@ -148,7 +153,7 @@ export default function InvoiceDashboard() {
           <div className="kpi-icon">
             <svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="1.6" fill="none"/></svg>
           </div>
-          <div className="kpi-val">${(kpis.paid / 1000).toFixed(2)}k</div>
+          <div className="kpi-val">${fmtMoney(kpis.paid)}</div>
           <div className="kpi-label">Paid</div>
         </div>
         <div className="kpi card">
@@ -177,10 +182,10 @@ export default function InvoiceDashboard() {
             />
           </div>
 
-          <button className="btn primary" type="button">
+          <Link className="btn primary" to="/invoices/new">
             <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" fill="none"/></svg>
             Create Invoice
-          </button>
+          </Link>
         </div>
 
         <div className="right">
@@ -238,9 +243,7 @@ export default function InvoiceDashboard() {
               <div className="td"><span className={`badge ${String(r.status || "").toLowerCase()}`}>{r.status}</span></div>
               <div className="td client">
                 <div className="avatar">{(r.client || "?").split(" ").map((s) => s[0]).join("").slice(0,2)}</div>
-                <div className="who">
-                  <div className="name">{r.client}</div>
-                </div>
+                <div className="who"><div className="name">{r.client}</div></div>
               </div>
               <div className="td right">${fmtMoney(r.total)}</div>
               <div className="td">{r.issued}</div>
