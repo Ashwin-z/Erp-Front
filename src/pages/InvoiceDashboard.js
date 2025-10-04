@@ -79,7 +79,7 @@ export default function InvoiceDashboard() {
     refreshTimer.current && clearInterval(refreshTimer.current);
     refreshTimer.current = setInterval(() => {
       fetchInvoices();
-    }, 10000);
+    }, 100000);
     return () => refreshTimer.current && clearInterval(refreshTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, statusFilter, page, perPage]);
