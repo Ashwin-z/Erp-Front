@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ERP_APP_URL,
-  ERP_BASE_URL,
   createSalesInvoice,
   searchCustomers,
   searchItems,
@@ -14,6 +12,28 @@ const toCurrency = (n) =>
 const today = () => new Date().toISOString().slice(0, 10);
 const nowHHMMSS = () => new Date().toTimeString().slice(0, 8);
 
+const initialState = {
+  naming_series: "ACC-SINV-.YYYY.-",
+  customer: "",
+  posting_date: today(),
+  posting_time: nowHHMMSS(),
+  due_date: "",
+  is_pos: 0,
+  is_return: 0,
+  is_debit_note: 0,
+  update_stock: 0,
+  apply_discount_on: "Grand Total",
+  is_cash_or_non_trade_discount: 0,
+  additional_discount_percentage: 0,
+  discount_amount: 0,
+  tax_category: "",
+  taxes_and_charges: "",
+  shipping_rule: "",
+  incoterm: "",
+  items: [{ item_code: "", description: "", uom: "", qty: 1, rate: 0 }],
+  taxes: [],
+};
+
 /* --- AsyncTypeahead (simple combobox) --- */
 function AsyncTypeahead({ value, onChange, fetcher, placeholder = "", renderOption }) {
   const [q, setQ] = useState("");
@@ -24,13 +44,17 @@ function AsyncTypeahead({ value, onChange, fetcher, placeholder = "", renderOpti
     let alive = true;
     (async () => {
       if (!open) return;
-      const res = await fetcher(q || "");
-      if (!alive) return;
-      setOpts(res || []);
+      try {
+        const res = await fetcher(q || "");
+        if (!alive) return;
+        setOpts(res || []);
+      } catch (err) {
+        console.warn("Typeahead fetch failed:", err?.response?.status || err?.message);
+        if (!alive) return;
+        setOpts([]); // swallow errors
+      }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [q, open, fetcher]);
 
   return (
@@ -41,10 +65,7 @@ function AsyncTypeahead({ value, onChange, fetcher, placeholder = "", renderOpti
         placeholder={placeholder}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        onChange={(e) => {
-          setQ(e.target.value);
-          onChange(e.target.value);
-        }}
+        onChange={(e) => { setQ(e.target.value); onChange(e.target.value); }}
       />
       {open && opts?.length > 0 && (
         <div className="combo-pop">
@@ -52,11 +73,7 @@ function AsyncTypeahead({ value, onChange, fetcher, placeholder = "", renderOpti
             <div
               key={o.name}
               className="combo-opt"
-              onMouseDown={() => {
-                onChange(o.name);
-                setQ(o.name);
-                setOpen(false);
-              }}
+              onMouseDown={() => { onChange(o.name); setQ(o.name); setOpen(false); }}
             >
               {renderOption ? renderOption(o) : <span>{o.name}</span>}
             </div>
@@ -83,8 +100,12 @@ function ItemRow({ row, onChange, onRemove }) {
               const val = e.target.value;
               onChange({ ...row, item_code: val });
               if (val.length >= 2) {
-                const res = await searchItems(val);
-                setSuggest(res || []);
+                try {
+                  const res = await searchItems(val);
+                  setSuggest(res || []);
+                } catch {
+                  setSuggest([]);
+                }
               } else {
                 setSuggest([]);
               }
@@ -98,14 +119,18 @@ function ItemRow({ row, onChange, onRemove }) {
                   key={it.name}
                   className="combo-opt"
                   onMouseDown={async () => {
-                    const full = await getItem(it.name);
-                    onChange({
-                      ...row,
-                      item_code: it.name, // IMPORTANT: docname
-                      description: full?.description || it.item_name || it.name,
-                      uom: full?.stock_uom || it.stock_uom || "",
-                      rate: Number(full?.standard_rate) || Number(row.rate) || 0,
-                    });
+                    try {
+                      const full = await getItem(it.name);
+                      onChange({
+                        ...row,
+                        item_code: it.name, // docname
+                        description: full?.description || it.item_name || it.name,
+                        uom: full?.stock_uom || it.stock_uom || "",
+                        rate: Number(full?.standard_rate) || Number(row.rate) || 0,
+                      });
+                    } catch {
+                      onChange({ ...row, item_code: it.name });
+                    }
                     setSuggest([]);
                   }}
                 >
@@ -194,31 +219,16 @@ function TaxRow({ row, onChange, onRemove }) {
 export default function CreateInvoice() {
   const navigate = useNavigate();
 
-  const [state, setState] = useState({
-    naming_series: "ACC-SINV-.YYYY.-",
-    customer: "",
-    posting_date: today(),
-    posting_time: nowHHMMSS(),
-    due_date: "",
-    is_pos: 0,
-    is_return: 0,
-    is_debit_note: 0,
-    update_stock: 0,
-    apply_discount_on: "Grand Total",
-    is_cash_or_non_trade_discount: 0,
-    additional_discount_percentage: 0,
-    discount_amount: 0,
-    tax_category: "",
-    taxes_and_charges: "",
-    shipping_rule: "",
-    incoterm: "",
-    items: [{ item_code: "", description: "", uom: "", qty: 1, rate: 0 }],
-    taxes: [],
-  });
+  const [state, setState] = useState(initialState);
+  const [created, setCreated] = useState(null); // {name}
+  const [isSaving, setIsSaving] = useState(false);
 
   const totals = useMemo(() => {
     const total_qty = state.items.reduce((s, i) => s + (Number(i.qty) || 0), 0);
-    const net_total = state.items.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.rate) || 0), 0);
+    const net_total = state.items.reduce(
+      (s, i) => s + (Number(i.qty) || 0) * (Number(i.rate) || 0),
+      0
+    );
     let total_taxes_and_charges = 0;
     state.taxes.forEach((t) => {
       const rate = Number(t.rate) || 0;
@@ -251,7 +261,10 @@ export default function CreateInvoice() {
   const removeItemRow = (i) =>
     setState((s) => ({ ...s, items: s.items.filter((_, idx) => idx !== i) }));
   const addTaxRow = () =>
-    setState((s) => ({ ...s, taxes: [...s.taxes, { charge_type: "On Net Total", account_head: "", rate: 0 }] }));
+    setState((s) => ({
+      ...s,
+      taxes: [...s.taxes, { charge_type: "On Net Total", account_head: "", rate: 0 }],
+    }));
   const updateTaxRow = (i, r) =>
     setState((s) => ({ ...s, taxes: s.taxes.map((it, idx) => (idx === i ? r : it)) }));
   const removeTaxRow = (i) =>
@@ -267,37 +280,24 @@ export default function CreateInvoice() {
       const code = String(row.item_code || "").trim();
       if (!code || !(Number(row.qty) > 0)) continue;
 
-      // 1) try direct docname
       let doc = null;
-      try {
-        doc = await getItem(code);
-      } catch {
-        doc = null;
-      }
-
-      // 2) if not found, search by query and try to map
-      if (!doc) {
-        const candidates = await searchItems(code);
-        const exactByName =
-          candidates.find((c) => String(c.name).toLowerCase() === code.toLowerCase()) ||
-          candidates.find((c) => String(c.item_name || "").toLowerCase() === code.toLowerCase());
-        const pick = exactByName || candidates[0];
-        if (pick) {
-          try {
-            doc = await getItem(pick.name);
-          } catch {
-            doc = null;
-          }
-        }
-      }
+      try { doc = await getItem(code); } catch { doc = null; }
 
       if (!doc) {
-        notFound.push(code);
-        continue;
+        try {
+          const candidates = await searchItems(code);
+          const exactByName =
+            candidates.find((c) => String(c.name).toLowerCase() === code.toLowerCase()) ||
+            candidates.find((c) => String(c.item_name || "").toLowerCase() === code.toLowerCase());
+          const pick = exactByName || candidates[0];
+          if (pick) { try { doc = await getItem(pick.name); } catch { doc = null; } }
+        } catch { /* ignore */ }
       }
+
+      if (!doc) { notFound.push(code); continue; }
 
       resolved.push({
-        item_code: doc.name, // the real docname
+        item_code: doc.name,
         qty: Number(row.qty) || 0,
         rate: Number(row.rate) || Number(doc.standard_rate) || 0,
         description: row.description || doc.description || undefined,
@@ -308,14 +308,15 @@ export default function CreateInvoice() {
     return { resolved, notFound };
   }
 
-  // Prevent default navigation; resolve items; save
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (isSaving) return; // guard
     if (!canSave) {
       alert("Customer and at least 1 item (qty > 0) are required.");
       return;
     }
 
+    setIsSaving(true);
     try {
       const { resolved, notFound } = await resolveItemsBeforeSave(state.items);
       if (notFound.length) {
@@ -324,6 +325,7 @@ export default function CreateInvoice() {
             ", "
           )}\n\nPick an existing item from the dropdown or create it in ERPNext first.`
         );
+        setIsSaving(false);
         return;
       }
 
@@ -348,8 +350,7 @@ export default function CreateInvoice() {
         additional_discount_percentage: Number(state.additional_discount_percentage) || 0,
         discount_amount: Number(state.discount_amount) || 0,
 
-        items: resolved, // use validated rows
-
+        items: resolved,
         taxes: state.taxes.map((t) => ({
           charge_type: t.charge_type || "On Net Total",
           account_head: t.account_head,
@@ -359,12 +360,12 @@ export default function CreateInvoice() {
 
       const doc = await createSalesInvoice(payload);
 
-      // Open the created invoice in ERPNext (absolute URL) in a new tab
-      if (ERP_APP_URL) {
-        const viewUrl = `${ERP_APP_URL}/app/sales-invoice/${encodeURIComponent(doc.name)}`;
-        window.open(viewUrl, "_blank", "noopener");
-      }
-      navigate("/");
+      // No auto-open and no "Open in ERPNext" button.
+      setCreated({ name: doc.name });
+
+      // Optional: reset form after success
+      // setState(initialState);
+      // Or navigate to list: navigate("/");
     } catch (e2) {
       console.error(e2);
       const serverMsg =
@@ -372,26 +373,80 @@ export default function CreateInvoice() {
         e2?.response?.data?.message ||
         e2.message;
       alert("Failed to create invoice: " + serverMsg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const newErpInvoiceUrl = ERP_APP_URL
-    ? `${ERP_APP_URL}/app/sales-invoice/new-sales-invoice`
-    : "";
+  const newErpInvoiceUrl = ""; // intentionally unused now
 
   return (
     <div className="page create-invoice">
+      {/* Simple success note without any ERPNext link */}
+      {created && (
+        <div
+          className="card"
+          style={{
+            padding: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            borderLeft: "4px solid var(--green)",
+          }}
+        >
+          <div>
+            Invoice <strong>{created.name}</strong> created successfully.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => {
+                setState(initialState);
+                setCreated(null);
+              }}
+            >
+              New Invoice
+            </button>
+            <button className="btn" type="button" onClick={() => { setCreated(null); navigate("/"); }}>
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
       <form className="card title-bar" onSubmit={onSubmit}>
         <div style={{ fontWeight: 800, fontSize: 18 }}>New Sales Invoice</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {newErpInvoiceUrl && (
-            <a className="btn" href={newErpInvoiceUrl} target="_blank" rel="noreferrer">
-              Get Items From …
-            </a>
-          )}
-          <button className="btn primary" type="submit" disabled={!canSave}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Removed "Get Items From …" link and ERPNext open */}
+          <button
+            className="btn primary"
+            type="submit"
+            disabled={!canSave || isSaving}
+            aria-busy={isSaving ? "true" : "false"}
+          >
             Save
           </button>
+          {isSaving && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {/* Inline SVG spinner (no CSS needed) */}
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" opacity="0.25" />
+                <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" fill="none">
+                  <animateTransform
+                    attributeName="transform"
+                    type="rotate"
+                    from="0 12 12"
+                    to="360 12 12"
+                    dur="0.7s"
+                    repeatCount="indefinite"
+                  />
+                </path>
+              </svg>
+              <span className="muted">Saving…</span>
+            </div>
+          )}
         </div>
       </form>
 
@@ -596,7 +651,9 @@ export default function CreateInvoice() {
               step="0.01"
               className="input"
               value={state.additional_discount_percentage}
-              onChange={(e) => setState({ ...state, additional_discount_percentage: e.target.value })}
+              onChange={(e) =>
+                setState({ ...state, additional_discount_percentage: e.target.value })
+              }
             />
           </div>
           <div>
@@ -614,7 +671,9 @@ export default function CreateInvoice() {
           <input
             type="checkbox"
             checked={!!state.is_cash_or_non_trade_discount}
-            onChange={(e) => setState({ ...state, is_cash_or_non_trade_discount: e.target.checked })}
+            onChange={(e) =>
+              setState({ ...state, is_cash_or_non_trade_discount: e.target.checked })
+            }
           />
           Is Cash or Non Trade Discount
         </label>

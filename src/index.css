@@ -336,3 +336,104 @@ a{color:var(--purple);text-decoration:none}
 .si-table thead th{color:var(--muted);font-size:12px;border-bottom:1px solid var(--line)}
 .si-table tbody tr{background:var(--panel)}
 .si-table .col-amt{text-align:right;font-weight:800}
+
+
+
+
+
+/* Action icons */
+.icon-btn.view { border-color: var(--line); }
+.icon-btn.view:hover { background: color-mix(in oklab, var(--purple) 10%, transparent); }
+
+.icon-btn.danger {
+  border-color: color-mix(in oklab, var(--red) 40%, var(--line));
+}
+.icon-btn.danger:hover {
+  background: color-mix(in oklab, var(--red) 14%, transparent);
+  color: var(--red);
+}
+
+/* Title bar card */
+.card.title-bar {
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Keep dd-menu nice when used as actions menu in toolbar */
+.toolbar .dd-menu {
+  min-width: 200px;
+}
+
+
+/* ---------- Wider table columns (less cramped) ---------- */
+.t-head.wide-cols, .t-row.wide-cols{
+  /* checkbox | id | client | status | total | date | balance | actions */
+  grid-template-columns: 44px 190px 2.2fr 1.1fr 1.2fr 1.3fr 1.2fr 1fr;
+  gap: 16px; /* a bit more breathing space */
+}
+.client.roomy { gap: 12px; }
+
+/* ---------- Actions flyout (always inside the screen) ---------- */
+.menu-flyout{
+  position: absolute;
+  top: 110%;
+  right: 0;          /* anchor to the right of toolbar */
+  left: auto !important;
+  min-width: 220px;
+  max-width: 260px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 40;
+}
+.menu-flyout.left{ right: 0; } /* explicit; opens leftwards from the button */
+.toolbar{ overflow: visible; }  /* ensure the flyout isn't clipped */
+
+/* ---------- Modal ---------- */
+.modal-backdrop{
+  position: fixed; inset: 0;
+  background: rgba(2,6,23,.55); backdrop-filter: blur(2px);
+  display: grid; place-items: center; z-index: 50;
+}
+.modal{
+  width: min(560px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.modal-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 12px 14px; border-bottom:1px solid var(--line);
+}
+.modal-title{ font-weight:800; font-size:16px; }
+.modal-body{ padding: 14px; }
+.modal-foot{
+  display:flex; gap:8px; justify-content:flex-end;
+  padding: 12px 14px; border-top:1px solid var(--line);
+}
+.btn.danger{
+  background: color-mix(in oklab, var(--red) 26%, var(--panel));
+  border-color: color-mix(in oklab, var(--red) 40%, var(--line));
+  color: #fff;
+}
+
+/* ---------- Toast ---------- */
+.toast{
+  position: fixed; right: 16px; bottom: 16px;
+  border-radius: 12px; padding: 10px 14px;
+  background: var(--panel); border:1px solid var(--line);
+  box-shadow: var(--shadow); z-index: 60;
+  font-weight: 700;
+}
+.toast.ok{ border-color: rgba(34,197,94,.4); color: var(--text); }
+.toast.warn{ border-color: rgba(239,68,68,.4); color: var(--text); }
+
+/* small tweak so row actions look balanced */
+.actions .icon-btn { width: 36px; height: 36px; }

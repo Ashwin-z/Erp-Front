@@ -1,286 +1,397 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import Dropdown from "../components/Dropdown";
-import { listSalesInvoices } from "../api/erpnext";
+import {
+  listSalesInvoices,
+  deleteSalesInvoice,
+  toAbsoluteUrl,
+  getLoggedUser,
+  getUserDoc,
+} from "../api/erpnext";
+import { Link, useNavigate } from "react-router-dom";
 
-const STATUS = ["Paid", "Unpaid", "Draft", "Overdue", "Cancelled"];
-
-function fmtMoney(n) {
-  if (typeof n !== "number") return n;
-  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+/* ---------- Icons ---------- */
+function Icon({ d, size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d={d} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
-function fmtDate(d) {
-  try {
-    return new Date(d).toLocaleDateString(undefined, {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return d;
-  }
+
+/* ---------- Modal ---------- */
+function Modal({ open, title, children, onClose, onConfirm, confirmText = "Confirm", confirmTone = "danger" }) {
+  if (!open) return null;
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal">
+        <div className="modal-head">
+          <div className="modal-title">{title}</div>
+          <button className="icon-btn sm" onClick={onClose} title="Close">
+            <Icon d="M6 6l12 12M18 6L6 18" />
+          </button>
+        </div>
+        <div className="modal-body">{children}</div>
+        <div className="modal-foot">
+          <button className="btn" type="button" onClick={onClose}>Cancel</button>
+          <button
+            className={`btn ${confirmTone === "danger" ? "danger" : "primary"}`}
+            type="button"
+            onClick={onConfirm}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Toast ---------- */
+function Toast({ msg, tone = "ok", onDone }) {
+  const timer = useRef(null);
+  useEffect(() => {
+    if (!msg) return;
+    timer.current = setTimeout(() => onDone?.(), 2600);
+    return () => clearTimeout(timer.current);
+  }, [msg, onDone]);
+  if (!msg) return null;
+  return (
+    <div className={`toast ${tone}`}>
+      {msg}
+    </div>
+  );
 }
 
 export default function InvoiceDashboard() {
-  const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [perPage, setPerPage] = useState(25);
-  const [page, setPage] = useState(1);
+  const navigate = useNavigate();
 
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const refreshTimer = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("All");
+  const [selected, setSelected] = useState(() => new Set());
+  const [me, setMe] = useState({ avatar: "", name: "" });
 
-  const LOGO_SRC = process.env.PUBLIC_URL + "/assets/images/logo.png";
+  // actions menu
+  const [actOpen, setActOpen] = useState(false);
+  const actWrapRef = useRef(null);
 
-  const fetchInvoices = async () => {
+  // modal + toast
+  const [modal, setModal] = useState({ open: false, ids: [] });
+  const [toast, setToast] = useState({ msg: "", tone: "ok" });
+
+  // close actions menu if clicking outside
+  useEffect(() => {
+    function onDocClick(e) {
+      if (!actWrapRef.current) return;
+      if (!actWrapRef.current.contains(e.target)) setActOpen(false);
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
+
+  // Fetch profile (avatar)
+  useEffect(() => {
+    (async () => {
+      try {
+        const u = await getLoggedUser();
+        const doc = await getUserDoc(u);
+        const img = toAbsoluteUrl(doc?.user_image || "");
+        setMe({ avatar: img, name: doc?.full_name || doc?.name || u });
+      } catch {
+        setMe({ avatar: "", name: "User" });
+      }
+    })();
+  }, []);
+
+  async function load() {
+    setLoading(true);
     try {
-      setErr("");
-      setLoading(true);
-
-      const data = await listSalesInvoices({
-        search: q,
-        status: statusFilter,
-        page,
-        pageSize: perPage,
-      });
-
-      const mapped = (Array.isArray(data) ? data : []).map((d, i) => ({
-        id: d.name,
-        status: d.status,
-        client: d.customer,
-        company: d.company,
-        total: Number(d.grand_total) || 0,
-        issued: fmtDate(d.posting_date || d.modified),
-        balance: Number(d.outstanding_amount) || 0,
-        _key: `erp-${d.name}-${i}`,
-      }));
-
-      setRows(mapped);
-    } catch (e) {
-      console.error(e);
-      setErr(e.message || "Failed to load invoices");
-      setRows([]);
+      const res = await listSalesInvoices();
+      setRows(res || []);
     } finally {
       setLoading(false);
     }
-  };
+  }
+  useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    fetchInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, statusFilter, page, perPage]);
+  const filtered = useMemo(() => {
+    let r = rows;
+    if (status !== "All") r = r.filter((x) => (x.status || "").toLowerCase() === status.toLowerCase());
+    if (q.trim()) {
+      const t = q.trim().toLowerCase();
+      r = r.filter(
+        (x) =>
+          String(x.name).toLowerCase().includes(t) ||
+          String(x.customer || "").toLowerCase().includes(t)
+      );
+    }
+    return r;
+  }, [rows, q, status]);
 
-  useEffect(() => {
-    refreshTimer.current && clearInterval(refreshTimer.current);
-    refreshTimer.current = setInterval(() => {
-      fetchInvoices();
-    }, 10000);
-    return () => refreshTimer.current && clearInterval(refreshTimer.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, statusFilter, page, perPage]);
-
-  // KPIs:
-  // - Paid = sum(grand_total) where status === "Paid"
-  // - Unpaid = sum(outstanding_amount) where outstanding > 0 AND status !== "Paid"
-  const kpis = useMemo(() => {
-    const paidTotal = rows
-      .filter((r) => r.status === "Paid")
-      .reduce((a, r) => a + r.total, 0);
-
-    const unpaidTotal = rows
-      .filter((r) => r.status !== "Paid" && r.balance > 0)
-      .reduce((a, r) => a + r.balance, 0);
-
-    return {
-      clients: new Set(rows.map((r) => r.client)).size,
-      invoices: rows.length,
-      paid: paidTotal,
-      unpaid: unpaidTotal,
-    };
+  const totals = useMemo(() => {
+    const paid = rows.filter((r) => (r.status || "").toLowerCase() === "paid").reduce((s, x) => s + (Number(x.grand_total) || 0), 0);
+    const unpaid = rows
+      .filter((r) => (r.status || "").toLowerCase() !== "paid")
+      .reduce((s, x) => s + (Number(x.outstanding_amount) || 0), 0);
+    return { paid, unpaid };
   }, [rows]);
 
-  const perPageOptions = useMemo(() => [10, 25, 50].map((n) => ({ value: n, label: String(n) })), []);
-  const statusOptions = useMemo(
-    () => [{ value: "All", label: "Invoice Status", placeholder: true }, ...STATUS.map((s) => ({ value: s, label: s }))],
-    []
-  );
+  function toggle(id) {
+    setSelected((s) => {
+      const ns = new Set(s);
+      if (ns.has(id)) ns.delete(id);
+      else ns.add(id);
+      return ns;
+    });
+  }
+  function toggleAll(ids) {
+    setSelected((s) => {
+      const ns = new Set(s);
+      const allSelected = ids.every((id) => ns.has(id));
+      if (allSelected) ids.forEach((id) => ns.delete(id));
+      else ids.forEach((id) => ns.add(id));
+      return ns;
+    });
+  }
+
+  function confirmDelete(ids) {
+    setModal({
+      open: true,
+      ids: Array.isArray(ids) ? ids : [ids],
+      title: `Delete ${Array.isArray(ids) ? ids.length : 1} invoice(s)`,
+    });
+  }
+
+  async function doDelete(ids) {
+    const failures = [];
+    for (const id of ids) {
+      try {
+        await deleteSalesInvoice(id);
+      } catch (e) {
+        failures.push(id);
+      }
+    }
+    if (failures.length) {
+      setToast({
+        msg:
+          `Some invoices could not be deleted (likely submitted): ` +
+          failures.join(", "),
+        tone: "warn",
+      });
+    } else {
+      setToast({ msg: "Invoice(s) deleted.", tone: "ok" });
+    }
+    await load();
+    setSelected(new Set());
+  }
+
+  const visibleIds = filtered.map((r) => r.name);
+  const allChecked = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
 
   return (
     <div className="page">
-      {/* Brand header */}
-      <div className="page-brand card">
-        <img
-          className="brand-icon-lg"
-          src={LOGO_SRC}
-          alt="Merrix ERP"
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src =
-              "data:image/svg+xml;utf8," +
-              encodeURIComponent(
-                `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='#f2f3ff'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Inter, Arial' font-size='16' fill='#7367f0'>ME</text></svg>`
-              );
-          }}
-        />
+      {/* brand strip */}
+      <div className="page-brand">
+        <img className="brand-icon-lg" src="/assets/images/logo.png" alt="Brand" />
         <div className="brand-copy">
           <div className="brand-wordmark tight">
             <span className="merrix">Merrix</span>
             <span className="erp">ERP</span>
           </div>
-          <div className="brand-sub muted">Dashboard overview</div>
+          <div className="brand-sub muted">Invoices</div>
         </div>
       </div>
 
-      {/* KPI cards */}
+      {/* KPIs */}
       <div className="kpi-grid">
-        <div className="kpi card">
-          <div className="kpi-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24"><path d="M16 11c1.7 0 3-1.8 3-4s-1.3-4-3-4-3 1.8-3 4 1.3 4 3 4ZM3 21v-1a5 5 0 0 1 5-5h2" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round"/></svg>
-          </div>
-          <div className="kpi-val">{kpis.clients}</div>
-          <div className="kpi-label">Clients</div>
+        <div className="card kpi">
+          <div className="kpi-icon"><Icon d="M3 12h38" /></div>
+          <div><div className="kpi-val">{filtered.length}</div><div className="kpi-label">Invoices</div></div>
         </div>
-        <div className="kpi card">
-          <div className="kpi-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24"><path d="M7 4h10a2 2 0 0 1 2 2v12l-5-3-5 3V6a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round"/></svg>
-          </div>
-          <div className="kpi-val">{kpis.invoices}</div>
-          <div className="kpi-label">Invoices</div>
+        <div className="card kpi">
+          <div className="kpi-icon"><Icon d="M20 7l-9 9-4-4" /></div>
+          <div><div className="kpi-val">${(totals.paid || 0).toLocaleString()}</div><div className="kpi-label">Paid</div></div>
         </div>
-        <div className="kpi card">
-          <div className="kpi-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="1.6" fill="none"/></svg>
-          </div>
-          <div className="kpi-val">${fmtMoney(kpis.paid)}</div>
-          <div className="kpi-label">Paid</div>
+        <div className="card kpi">
+          <div className="kpi-icon"><Icon d="M12 8v8m4-4H8" /></div>
+          <div><div className="kpi-val">${(totals.unpaid || 0).toLocaleString()}</div><div className="kpi-label">Unpaid</div></div>
         </div>
-        <div className="kpi card">
-          <div className="kpi-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-8-8" stroke="currentColor" strokeWidth="1.6" fill="none"/><path d="M20 4v6h-6" stroke="currentColor" strokeWidth="1.6" fill="none"/></svg>
-          </div>
-          <div className="kpi-val">${fmtMoney(kpis.unpaid)}</div>
-          <div className="kpi-label">Unpaid</div>
+        <div className="card kpi">
+          <div className="kpi-icon"><Icon d="M4 4h16v16H4z" /></div>
+          <div><div className="kpi-val">{status}</div><div className="kpi-label">Filter</div></div>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className="toolbar card">
-        <div className="left">
-          <div className="show-select">
-            <span>Show</span>
-            <Dropdown
-              small
-              className="w-90"
-              options={perPageOptions}
-              value={perPage}
-              onChange={(val) => {
-                setPerPage(val);
-                setPage(1);
-              }}
-            />
+      <div className="card toolbar">
+        <div className="left" style={{ gap: 10 }}>
+          <div className="dd w-220">
+            <button className="dd-trigger" type="button" onClick={() => setStatus((s) => s === "All" ? "Paid" : s)}>
+              <span className="value">{status}</span>
+              <span className="dd-chevron">▾</span>
+            </button>
+            {/* keep simple presets if you want later */}
           </div>
-
-          <Link className="btn primary" to="/invoices/new">
-            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" fill="none"/></svg>
-            Create Invoice
-          </Link>
+          <input className="input" placeholder="Search invoices…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
 
-        <div className="right">
-          <input
-            className="input"
-            placeholder="Search Invoice"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-          />
-
-          <Dropdown
-            className="w-220"
-            alignRight
-            options={statusOptions}
-            value={statusFilter}
-            onChange={(val) => {
-              setStatusFilter(val);
-              setPage(1);
-            }}
-          />
+        <div className="right" style={{ position: "relative" }} ref={actWrapRef}>
+          {selected.size > 0 ? (
+            <>
+              <button className="btn" type="button" onClick={() => setActOpen((o) => !o)}>
+                Actions ({selected.size})
+              </button>
+              {actOpen && (
+                <div className="menu-flyout left">
+                  {selected.size === 1 && (
+                    <div
+                      className="dd-option"
+                      onMouseDown={() => {
+                        const id = Array.from(selected)[0];
+                        setActOpen(false);
+                        navigate(`/invoice/${encodeURIComponent(id)}`);
+                      }}
+                    >
+                      View / Edit
+                    </div>
+                  )}
+                  <div
+                    className="dd-option"
+                    onMouseDown={() => {
+                      setActOpen(false);
+                      confirmDelete(Array.from(selected));
+                    }}
+                  >
+                    Delete selected
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <Link className="btn primary" to="/create" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <Icon d="M12 5v14M5 12h14" />
+              Create Invoice
+            </Link>
+          )}
+          <div className="avatar sm" title={me.name}>
+            {me.avatar ? (
+              <img src={me.avatar} alt={me.name} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+            ) : ((me.name || "U").slice(0, 1).toUpperCase())}
+          </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="table card">
-        <div className="t-head">
-          <div className="th center"><input type="checkbox" aria-label="select all" /></div>
+      <div className="card table">
+        <div className="t-head wide-cols">
+          <div className="th center">
+            <input type="checkbox" checked={allChecked} onChange={() => toggleAll(visibleIds)} />
+          </div>
           <div className="th">#</div>
-          <div className="th">Status</div>
           <div className="th">Client</div>
+          <div className="th">Status</div>
           <div className="th right">Total</div>
           <div className="th">Issued Date</div>
-          <div className="th">Balance</div>
+          <div className="th right">Balance</div>
           <div className="th center">Actions</div>
         </div>
 
-        {err && (
-          <div className="t-row" role="alert" style={{ color: "var(--red)", fontWeight: 700 }}>
-            {err}
-          </div>
-        )}
-
-        {loading && !rows.length ? (
+        {loading ? (
           <div className="t-row"><div className="td">Loading…</div></div>
-        ) : rows.length === 0 ? (
-          <div className="t-row"><div className="td">No invoices found.</div></div>
+        ) : filtered.length === 0 ? (
+          <div className="t-row"><div className="td">No invoices</div></div>
         ) : (
-          rows.map((r) => (
-            <div className="t-row" key={r._key}>
-              <div className="td center"><input type="checkbox" aria-label={`select ${r.id}`} /></div>
-              <div className="td id"><a className="id-code" href="#!">{r.id}</a></div>
-              <div className="td"><span className={`badge ${String(r.status || "").toLowerCase()}`}>{r.status}</span></div>
-              <div className="td client">
-                <div className="avatar">{(r.client || "?").split(" ").map((s) => s[0]).join("").slice(0,2)}</div>
-                <div className="who"><div className="name">{r.client}</div></div>
+          filtered.map((r) => (
+            <div key={r.name} className="t-row wide-cols">
+              <div className="td center">
+                <input type="checkbox" checked={selected.has(r.name)} onChange={() => toggle(r.name)} />
               </div>
-              <div className="td right">${fmtMoney(r.total)}</div>
-              <div className="td">{r.issued}</div>
+              <div className="td id">
+                <span className="id-code" title={r.name}>{r.name}</span>
+              </div>
               <div className="td">
-                {r.status === "Paid" ? (
+                <div className="client roomy">
+                  <div className="avatar">
+                    {String(r.customer || "?").slice(0,1).toUpperCase()}
+                  </div>
+                  <div className="who">
+                    <div className="name">{r.customer || "—"}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="td">
+                {String(r.status || "Draft").toLowerCase() === "paid" ? (
                   <span className="badge paid">Paid</span>
-                ) : Number(r.balance) > 0 ? (
-                  <span className="badge warning">Due</span>
+                ) : String(r.status || "").toLowerCase() === "overdue" ? (
+                  <span className="badge overdue">Overdue</span>
                 ) : (
-                  <span className="badge">—</span>
+                  <span className="badge unpaid">{r.status || "Unpaid"}</span>
                 )}
               </div>
-              <div className="td center actions">
-                <button className="icon-btn sm" title="Delete" type="button">
-                  <svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 6h18M8 6v12m8-12v12M10 6l1-2h2l1 2" stroke="currentColor" strokeWidth="1.7" fill="none"/></svg>
-                </button>
-                <button className="icon-btn sm" title="Preview" type="button">
-                  <svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 12s4-7 9-7 9 7 9 7-4 7-9 7-9-7-9-7Z" stroke="currentColor" strokeWidth="1.7" fill="none"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
-                </button>
-                <button className="icon-btn sm" title="More" type="button">
-                  <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg>
-                </button>
+              <div className="td right">
+                ${Number(r.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </div>
+              <div className="td">{r.posting_date || "—"}</div>
+              <div className="td right">
+                ${Number(r.outstanding_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </div>
+              <div className="td center">
+                <div className="actions">
+                  <button
+                    className="icon-btn view"
+                    title="View / Edit"
+                    type="button"
+                    onClick={() => navigate(`/invoice/${encodeURIComponent(r.name)}`)}
+                  >
+                    <Icon d="M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm9 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                  </button>
+                  <button
+                    className="icon-btn danger"
+                    title="Delete"
+                    type="button"
+                    onClick={() => confirmDelete(r.name)}
+                  >
+                    <Icon d="M3 6h18M8 6v12m8-12v12M10 6l1-2h2l1 2" />
+                  </button>
+                </div>
               </div>
             </div>
           ))
         )}
 
         <div className="t-foot">
-          <div className="muted">Showing {rows.length} entries (auto-refreshing every 10s)</div>
+          <div className="muted">Showing {filtered.length} of {rows.length}</div>
           <div className="pager">
-            <button className="page-btn" disabled={page === 1} onClick={() => setPage(1)} aria-label="first page" type="button">«</button>
-            <button className="page-btn" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="prev page" type="button">‹</button>
-            <span className="page-num">{page}</span>
-            <button className="page-btn" onClick={() => setPage((p) => p + 1)} aria-label="next page" type="button">›</button>
+            <button className="page-btn" disabled>‹</button>
+            <span className="page-num">1</span>
+            <button className="page-btn" disabled>›</button>
           </div>
         </div>
       </div>
+
+      {/* Confirm delete modal */}
+      <Modal
+        open={modal.open}
+        title="Delete invoices"
+        onClose={() => setModal({ open: false, ids: [] })}
+        onConfirm={() => {
+          const ids = modal.ids || [];
+          setModal({ open: false, ids: [] });
+          doDelete(ids);
+        }}
+        confirmText="Delete"
+        confirmTone="danger"
+      >
+        <p style={{ margin: 0 }}>
+          Do you want to permanently delete{" "}
+          <strong>{modal.ids?.length || 0}</strong> invoice
+          {modal.ids?.length > 1 ? "s" : ""}?<br />
+          <span className="muted">This will delete them from ERPNext as well.</span>
+        </p>
+      </Modal>
+
+      {/* Toast for feedback */}
+      <Toast msg={toast.msg} tone={toast.tone} onDone={() => setToast({ msg: "", tone: "ok" })} />
     </div>
   );
 }

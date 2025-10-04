@@ -2,21 +2,15 @@ import React, { useEffect, useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import InvoiceDashboard from "./pages/InvoiceDashboard";
 import CreateInvoice from "./pages/CreateInvoice";
+import InvoiceViewEdit from "./pages/InvoiceViewEdit";
 import NotFound from "./pages/NotFound";
-import { getLoggedUser, getUserDoc, toAbsoluteUrl } from "./api/erpnext";
 
 function Icon({ d, size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d={d} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
-}
-
-function initials(name = "") {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "U";
-  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
 }
 
 export default function App() {
@@ -26,111 +20,49 @@ export default function App() {
     localStorage.setItem("ui_theme", theme);
   }, [theme]);
 
-  const logoSrc = process.env.PUBLIC_URL + "/assets/images/logo.png";
-
-  // Real ERPNext user profile
-  const [profile, setProfile] = useState({ name: "", img: "" });
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const userId = await getLoggedUser();
-        if (!userId) return;
-        const doc = await getUserDoc(userId);
-        const full = doc?.full_name || userId;
-        const photo = doc?.user_image ? toAbsoluteUrl(doc.user_image) : "";
-        setProfile({ name: full, img: photo });
-      } catch (e) {
-        console.warn("Could not load user profile:", e?.message);
-      }
-    })();
-  }, []);
-
   return (
     <div className="vuexy-shell">
-      {/* Sidebar */}
       <aside className="vuexy-sidebar">
         <div className="brand">
-          <img
-            className="brand-icon"
-            src={logoSrc}
-            alt="Merrix ERP"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src =
-                "data:image/svg+xml;utf8," +
-                encodeURIComponent(
-                  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='#f2f3ff'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Inter, Arial' font-size='18' fill='#7367f0'>ME</text></svg>`
-                );
-            }}
-          />
-          <div className="brand-wordmark" aria-label="Merrix ERP">
+          <img className="brand-icon" src="/assets/images/logo.png" alt="Logo" />
+          <div className="brand-wordmark">
             <span className="merrix">Merrix</span>
             <span className="erp">ERP</span>
           </div>
         </div>
-
         <nav className="s-nav">
           <div className="s-section">Main</div>
           <NavLink to="/" end className="s-link">
             <Icon d="M3 7h18M3 12h18M3 17h18" />
             <span>Invoice</span>
           </NavLink>
-
-          <div className="s-section">Users</div>
-          <button className="s-link ghost" type="button">
-            <Icon d="M16 11c1.657 0 3-1.79 3-4s-1.343-4-3-4-3 1.79-3 4 1.343 4 3 4ZM5 21v-1a5 5 0 0 1 5-5h2" />
-            <span>Users</span>
-          </button>
-
-          <div className="s-section">Other</div>
-          <button className="s-link ghost" type="button">
-            <Icon d="M12 3v18M3 12h18" />
-            <span>Kanban</span>
-          </button>
         </nav>
       </aside>
 
-      {/* Main */}
       <main className="vuexy-main">
         <header className="vuexy-topbar">
           <div className="search-wrap">
             <Icon d="M11 19a8 8 0 1 1 5.293-2.707L22 22" />
             <input className="search-input" placeholder="Search [CTRL + K]" />
           </div>
-
           <div className="top-actions">
-            <button className="icon-btn" title="Translate" type="button">
-              <Icon d="M3 5h8m-8 6h8M5 21h4M13 21l8-18M15 10h6" />
-            </button>
-
             <button
               className="icon-btn"
-              title="Toggle theme"
+              title="Theme"
               aria-pressed={theme === "dark"}
-              type="button"
               onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              type="button"
             >
               <Icon d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
             </button>
-
-            <button className="icon-btn" title="Notifications" type="button">
-              <Icon d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14V11a6 6 0 1 0-12 0v3a2 2 0 0 1-.6 1.4L4 17h5" />
-            </button>
-
-            {profile.img ? (
-              <img className="avatar sm" src={profile.img} alt={profile.name} />
-            ) : (
-              <div className="avatar sm" aria-label={profile.name || "User"}>
-                {initials(profile.name)}
-              </div>
-            )}
+            <div className="avatar sm">U</div>
           </div>
         </header>
 
         <Routes>
           <Route path="/" element={<InvoiceDashboard />} />
-          <Route path="/invoices/new" element={<CreateInvoice />} />
+          <Route path="/create" element={<CreateInvoice />} />
+          <Route path="/invoice/:name" element={<InvoiceViewEdit />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
